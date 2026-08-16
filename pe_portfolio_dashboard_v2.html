@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meridian Portfolio Ledger — PE Fund Analytics</title>
+<style>
+  @font-face{font-family:'system';src:local('sans-serif');}
+  :root{
+    --bg:#0E1420; --surface:#161D2C; --surface-alt:#1C2438; --line:#2A3450;
+    --ink:#EDEAE0; --muted:#8A93A8; --gold:#C9A227; --teal:#4FA8B3;
+    --rose:#C2694A; --green:#5F9E7A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:Georgia, 'Times New Roman', serif;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  .serif{font-family:Georgia,'Iowan Old Style','Palatino Linotype',serif;}
+  .mono{font-family:'Courier New',Consolas,monospace;}
+
+  /* Ticker - pure CSS marquee, no JS */
+  .ticker-wrap{background:#0A0F18;border-bottom:1px solid var(--line);overflow:hidden;white-space:nowrap;padding:8px 0;}
+  .ticker{display:inline-block;white-space:nowrap;animation:scroll 32s linear infinite;font-family:'Courier New',monospace;font-size:12.5px;}
+  .ticker span{margin-right:34px;color:var(--muted);}
+  .ticker span b{color:var(--ink);font-weight:700;}
+  .up{color:var(--green);} .down{color:var(--rose);}
+  @keyframes scroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+  .hero{max-width:1100px;margin:0 auto;padding:52px 28px 30px;}
+  .eyebrow{font-family:'Courier New',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;}
+  h1.title{font-size:clamp(30px,5vw,50px);line-height:1.08;margin:0 0 14px;font-weight:700;}
+  .hero p.sub{color:var(--muted);font-size:16px;line-height:1.6;max-width:640px;margin:0 0 28px;}
+  .stat-row{display:flex;gap:36px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:22px;}
+  .stat .num{font-family:'Courier New',monospace;font-size:28px;color:var(--gold);font-weight:700;}
+  .stat .lab{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px;}
+
+  /* ---- PURE CSS TABS (radio-driven, no JS) ---- */
+  .tabset{max-width:1100px;margin:0 auto;padding:0 28px;}
+  .tabset input[type="radio"]{position:absolute;opacity:0;pointer-events:none;}
+  .tab-labels{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .tab-labels label{
+    font-family:'Courier New',monospace;font-size:13px;color:var(--muted);
+    padding:14px 16px;cursor:pointer;border-bottom:2px solid transparent;
+    user-select:none;
+  }
+  .tab-labels label:hover{color:var(--ink);}
+  .panels{padding:34px 0 70px;}
+  .panel{display:none;}
+  #t1:checked ~ .tab-labels label[for="t1"],
+  #t2:checked ~ .tab-labels label[for="t2"],
+  #t3:checked ~ .tab-labels label[for="t3"],
+  #t4:checked ~ .tab-labels label[for="t4"]{color:var(--gold);border-bottom-color:var(--gold);}
+  #t1:checked ~ .panels #panel1,
+  #t2:checked ~ .panels #panel2,
+  #t3:checked ~ .panels #panel3,
+  #t4:checked ~ .panels #panel4{display:block;}
+
+  h2{font-size:23px;font-weight:700;margin:0 0 6px;}
+  .page-desc{color:var(--muted);font-size:14px;margin:0 0 22px;}
+
+  .explain{background:var(--surface-alt);border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:6px;padding:16px 20px;margin-bottom:26px;font-size:14px;line-height:1.65;color:#C9D0DE;}
+  .explain b{color:var(--teal);font-family:'Courier New',monospace;font-size:12px;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;}
+
+  .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-bottom:18px;}
+  .grid.thirds{grid-template-columns:1fr 1fr;}
+  @media(max-width:820px){.grid,.grid.thirds{grid-template-columns:1fr;}}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;}
+  .card h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 14px;font-weight:700;}
+  svg{width:100%;height:auto;display:block;overflow:visible;}
+  svg circle:hover, svg rect:hover{opacity:0.75;cursor:pointer;}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted);}
+  .legend .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line);}
+  tbody td{padding:8px 10px;border-bottom:1px solid #202942;font-family:'Courier New',monospace;font-size:12.5px;}
+  tbody tr:hover{background:var(--surface-alt);}
+  .pos{color:var(--green);} .neg{color:var(--rose);}
+  .table-scroll{max-height:280px;overflow-y:auto;}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-family:'Courier New',monospace;background:rgba(194,105,74,.15);color:var(--rose);}
+
+  /* Fund picker - CSS only reveal via :target-like radio trick per fund */
+  .fund-grid{display:grid;grid-template-columns:1fr;gap:8px;max-height:230px;overflow-y:auto;padding-right:4px;}
+  .fund-row{display:flex;justify-content:space-between;padding:8px 10px;background:var(--surface-alt);border-radius:5px;font-size:12.5px;border:1px solid transparent;}
+  .fund-row b{font-weight:600;}
+  .fund-row .a{font-family:'Courier New',monospace;}
+
+  footer{max-width:1100px;margin:0 auto;padding:36px 28px 70px;border-top:1px solid var(--line);}
+  footer h2{font-size:19px;margin-bottom:10px;}
+  footer p{color:var(--muted);font-size:14px;line-height:1.7;max-width:680px;}
+  .tag-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+  .tag{font-family:'Courier New',monospace;font-size:12px;padding:6px 12px;border:1px solid var(--line);border-radius:20px;color:var(--muted);}
+  .measures{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:700px){.measures{grid-template-columns:1fr;}}
+  .measure{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;}
+  .measure .m-name{font-family:'Courier New',monospace;color:var(--gold);font-size:12.5px;margin-bottom:4px;font-weight:700;}
+  .measure .m-desc{font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .axis{font-size:9px;fill:var(--muted);font-family:'Courier New',monospace;}
+  .gridline{stroke:#232D46;stroke-width:1;}
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap">
+  <div class="ticker">
+    <span><b>ASHFORD</b> -0.74% <span class="down">▼</span></span>
+    <span><b>BLUECREST</b> -0.29% <span class="down">▼</span></span>
+    <span><b>COBALT</b> +0.68% <span class="up">▲</span></span>
+    <span><b>CRESTWOOD</b> +0.58% <span class="up">▲</span></span>
+    <span><b>FAIRMONT</b> -0.43% <span class="down">▼</span></span>
+    <span><b>HALCYON</b> +0.02% <span class="up">▲</span></span>
+    <span><b>IRONHOLD</b> -0.14% <span class="down">▼</span></span>
+    <span><b>MERIDIAN</b> +0.03% <span class="up">▲</span></span>
+    <span><b>NORTHBRIDGE</b> -0.44% <span class="down">▼</span></span>
+    <span><b>RIDGELINE</b> -0.28% <span class="down">▼</span></span>
+    <span><b>SILVERLINE</b> -0.20% <span class="down">▼</span></span>
+    <span><b>SUMMIT PEAK</b> +0.02% <span class="up">▲</span></span>
+    <!-- duplicate for seamless loop -->
+    <span><b>ASHFORD</b> -0.74% <span class="down">▼</span></span>
+    <span><b>BLUECREST</b> -0.29% <span class="down">▼</span></span>
+    <span><b>COBALT</b> +0.68% <span class="up">▲</span></span>
+    <span><b>CRESTWOOD</b> +0.58% <span class="up">▲</span></span>
+    <span><b>FAIRMONT</b> -0.43% <span class="down">▼</span></span>
+    <span><b>HALCYON</b> +0.02% <span class="up">▲</span></span>
+    <span><b>IRONHOLD</b> -0.14% <span class="down">▼</span></span>
+    <span><b>MERIDIAN</b> +0.03% <span class="up">▲</span></span>
+    <span><b>NORTHBRIDGE</b> -0.44% <span class="down">▼</span></span>
+    <span><b>RIDGELINE</b> -0.28% <span class="down">▼</span></span>
+    <span><b>SILVERLINE</b> -0.20% <span class="down">▼</span></span>
+    <span><b>SUMMIT PEAK</b> +0.02% <span class="up">▲</span></span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="eyebrow">Portfolio Analytics — Power BI Rebuild</div>
+  <h1 class="title serif">Meridian Portfolio Ledger</h1>
+  <p class="sub">An interactive recreation of a private‑equity fund‑of‑funds dashboard — tracking AUM, risk‑adjusted returns, cash flow, and investor composition across a 15‑fund portfolio. Originally built in Power BI; rebuilt here as a self‑contained, dependency‑free page.</p>
+  <div class="stat-row">
+    <div class="stat"><div class="num mono">$208M</div><div class="lab">Latest AUM</div></div>
+    <div class="stat"><div class="num mono">15</div><div class="lab">Funds tracked</div></div>
+    <div class="stat"><div class="num mono">$1.7B</div><div class="lab">Committed capital</div></div>
+    <div class="stat"><div class="num mono">6</div><div class="lab">Tables in data model</div></div>
+  </div>
+</header>
+
+<div class="tabset">
+  <input type="radio" name="tabs" id="t1" checked>
+  <input type="radio" name="tabs" id="t2">
+  <input type="radio" name="tabs" id="t3">
+  <input type="radio" name="tabs" id="t4">
+
+  <div class="tab-labels">
+    <label for="t1">01 · Intro</label>
+    <label for="t2">02 · Fund Performance</label>
+    <label for="t3">03 · Cash Flow &amp; Review</label>
+    <label for="t4">04 · Investor Base</label>
+  </div>
+
+  <div class="panels">
+
+    <!-- PANEL 1 -->
+    <div class="panel" id="panel1">
+      <h2>Portfolio Overview</h2>
+      <p class="page-desc">Total assets under management across all 15 funds, tracked monthly since Jan 2023.</p>
+      <div class="explain"><b>New to this?</b> "AUM" (Assets Under Management) is the total dollar value the fund manager is currently investing on behalf of clients. Watching it over time shows whether the portfolio is growing, shrinking, or holding steady.</div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>AUM Trend Over Time ($M)</h3>
+          <svg viewBox="0 0 560 220" preserveAspectRatio="xMidYMid meet">
+            <line x1="40" y1="20" x2="40" y2="200" class="gridline"/>
+            <line x1="40" y1="200" x2="560" y2="200" class="gridline"/>
+            <line x1="40" y1="110" x2="560" y2="110" class="gridline" stroke-dasharray="3,3"/>
+            <polyline fill="none" stroke="#C9A227" stroke-width="2.5"
+              points="40.0,170.0 80.0,146.0 120.0,122.0 160.0,95.0 200.0,68.0 240.0,53.0 280.0,86.0 320.0,119.0 360.0,101.0 400.0,65.0 440.0,50.0 480.0,80.0 520.0,86.0"/>
+            <polygon fill="rgba(201,162,39,0.10)" points="40,170 80,146 120,122 160,95 200,68 240,53 280,86 320,119 360,101 400,65 440,50 480,80 520,86 520,200 40,200"/>
+            <g fill="#C9A227">
+              <circle cx="40" cy="170"><title>Jan 2023: $180M</title></circle>
+              <circle cx="80" cy="146"><title>Apr 2023: $188M</title></circle>
+              <circle cx="120" cy="122"><title>Jul 2023: $196M</title></circle>
+              <circle cx="160" cy="95"><title>Oct 2023: $205M</title></circle>
+              <circle cx="200" cy="68"><title>Jan 2024: $214M</title></circle>
+              <circle cx="240" cy="53"><title>Apr 2024: $219M</title></circle>
+              <circle cx="280" cy="86"><title>Jul 2024: $208M</title></circle>
+              <circle cx="320" cy="119"><title>Oct 2024: $197M</title></circle>
+              <circle cx="360" cy="101"><title>Jan 2025: $203M</title></circle>
+              <circle cx="400" cy="65"><title>Apr 2025: $215M</title></circle>
+              <circle cx="440" cy="50"><title>Jul 2025: $220M</title></circle>
+              <circle cx="480" cy="80"><title>Oct 2025: $210M</title></circle>
+              <circle cx="520" cy="86"><title>Jan 2026: $208M</title></circle>
+              <animate attributeName="r" values="3;3" dur="1s"/>
+            </g>
+            <text x="40" y="215" class="axis">Jan23</text>
+            <text x="240" y="215" class="axis">Jan24</text>
+            <text x="440" y="215" class="axis">Jan25</text>
+            <text x="510" y="215" class="axis">Jan26</text>
+          </svg>
+          <style>#panel1 svg g circle{r:3.5;}</style>
+        </div>
+
+        <div class="card">
+          <h3>Fund Roster (hover for detail)</h3>
+          <div class="fund-grid">
+            <div class="fund-row"><span>Ashford Relative Value Fund</span><b class="a down">-0.74%</b></div>
+            <div class="fund-row"><span>Bluecrest Quant Strategies</span><b class="a down">-0.29%</b></div>
+            <div class="fund-row"><span>Cobalt Arbitrage Partners</span><b class="a up">+0.68%</b></div>
+            <div class="fund-row"><span>Crestwood Long/Short Fund</span><b class="a up">+0.58%</b></div>
+            <div class="fund-row"><span>Fairmont Macro Fund</span><b class="a down">-0.43%</b></div>
+            <div class="fund-row"><span>Halcyon Event Driven Fund</span><b class="a up">+0.02%</b></div>
+            <div class="fund-row"><span>Ironhold Credit Partners</span><b class="a down">-0.14%</b></div>
+            <div class="fund-row"><span>Meridian Alpha Partners</span><b class="a up">+0.03%</b></div>
+            <div class="fund-row"><span>Meridian Asset Management Co.</span><b class="a">—</b></div>
+            <div class="fund-row"><span>Northbridge Capital</span><b class="a down">-0.44%</b></div>
+            <div class="fund-row"><span>Ridgeline Multi-Strat</span><b class="a down">-0.28%</b></div>
+            <div class="fund-row"><span>Silverline Global Macro</span><b class="a down">-0.20%</b></div>
+            <div class="fund-row"><span>Summit Peak Capital</span><b class="a up">+0.02%</b></div>
+            <div class="fund-row"><span>Vantage Point Capital</span><b class="a">—</b></div>
+            <div class="fund-row"><span>Windward Global Fund</span><b class="a">—</b></div>
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:10px;">Figures are alpha vs. benchmark. In the original Power BI report this list is a slicer that cross‑filters every visual on the page.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2 -->
+    <div class="panel" id="panel2">
+      <h2>Fund Performance</h2>
+      <p class="page-desc">Monthly returns against benchmark, and risk‑adjusted performance across all funds.</p>
+      <div class="explain"><b>New to this?</b> "Alpha" is return earned above the benchmark — positive means the fund manager added value beyond just tracking the market. "Sharpe Ratio" measures return per unit of risk taken (higher = better risk‑adjusted performance). Volatility is how much a fund's returns bounce around.</div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Monthly Returns vs. Benchmark</h3>
+          <svg viewBox="0 0 600 220" preserveAspectRatio="xMidYMid meet">
+            <line x1="40" y1="20" x2="40" y2="200" class="gridline"/>
+            <line x1="40" y1="200" x2="560" y2="200" class="gridline"/>
+            <polyline fill="none" stroke="#4FA8B3" stroke-width="2"
+              points="40.0,101.0 62.6,146.0 85.2,74.0 107.8,173.0 130.4,47.0 153.0,155.0 175.7,119.0 198.3,29.0 220.9,164.0 243.5,92.0 266.1,137.0 288.7,65.0 311.3,173.0 333.9,101.0 356.5,146.0 379.1,38.0 401.7,164.0 424.3,110.0 447.0,56.0 469.6,155.0 492.2,119.0 514.8,74.0 537.4,146.0 560.0,47.0"/>
+            <polyline fill="none" stroke="#8A93A8" stroke-width="2" stroke-dasharray="5,4"
+              points="40.0,119.0 62.6,128.0 85.2,110.0 107.8,137.0 130.4,114.5 153.0,123.5 175.7,110.0 198.3,101.0 220.9,128.0 243.5,114.5 266.1,119.0 288.7,105.5 311.3,123.5 333.9,119.0 356.5,114.5 379.1,110.0 401.7,119.0 424.3,123.5 447.0,110.0 469.6,114.5 492.2,119.0 514.8,110.0 537.4,119.0 560.0,105.5"/>
+            <text x="40" y="215" class="axis">M1</text>
+            <text x="290" y="215" class="axis">M12</text>
+            <text x="540" y="215" class="axis">M24</text>
+          </svg>
+          <div class="legend">
+            <span><span class="dot" style="background:#4FA8B3"></span>Portfolio</span>
+            <span><span class="dot" style="background:#8A93A8"></span>Benchmark</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Risk vs. Return (bubble = relative NAV)</h3>
+          <svg viewBox="0 0 600 220" preserveAspectRatio="xMidYMid meet">
+            <line x1="40" y1="20" x2="40" y2="200" class="gridline"/>
+            <line x1="40" y1="200" x2="560" y2="200" class="gridline"/>
+            <g fill="#C9A227" fill-opacity="0.55" stroke="#C9A227" stroke-width="1">
+              <circle cx="377.3" cy="180.0" r="8.7"><title>Ashford: alpha -0.74, vol 2.10, Sharpe 0.05</title></circle>
+              <circle cx="280.0" cy="106.5" r="13.0" fill="#4FA8B3" stroke="#4FA8B3"><title>Bluecrest: alpha -0.29, vol 1.95, Sharpe 0.36</title></circle>
+              <circle cx="182.7" cy="20.0" r="18.9" fill="#5F9E7A" stroke="#5F9E7A"><title>Cobalt: alpha +0.68, vol 1.80, Sharpe 0.78</title></circle>
+              <circle cx="40.0" cy="27.5" r="19.9" fill="#5F9E7A" stroke="#5F9E7A"><title>Crestwood: alpha +0.58, vol 1.58, Sharpe 0.85</title></circle>
+              <circle cx="195.7" cy="130.2" r="11.9"><title>Fairmont: alpha -0.43, vol 1.82, Sharpe 0.28</title></circle>
+              <circle cx="254.1" cy="101.2" r="13.5" fill="#4FA8B3" stroke="#4FA8B3"><title>Halcyon: alpha +0.02, vol 1.91, Sharpe 0.39</title></circle>
+              <circle cx="377.3" cy="143.8" r="10.7"><title>Ironhold: alpha -0.14, vol 2.10, Sharpe 0.19</title></circle>
+              <circle cx="370.8" cy="108.0" r="12.6" fill="#4FA8B3" stroke="#4FA8B3"><title>Meridian Alpha: alpha +0.03, vol 2.09, Sharpe 0.33</title></circle>
+              <circle cx="111.4" cy="134.6" r="11.9"><title>Northbridge: alpha -0.44, vol 1.69, Sharpe 0.28</title></circle>
+              <circle cx="520.0" cy="121.5" r="11.5"><title>Ridgeline: alpha -0.28, vol 2.32, Sharpe 0.25</title></circle>
+              <circle cx="280.0" cy="99.3" r="13.5" fill="#4FA8B3" stroke="#4FA8B3"><title>Silverline: alpha -0.20, vol 1.95, Sharpe 0.39</title></circle>
+              <circle cx="234.6" cy="56.3" r="16.3" fill="#5F9E7A" stroke="#5F9E7A"><title>Summit Peak: alpha +0.02, vol 1.88, Sharpe 0.59</title></circle>
+            </g>
+            <text x="40" y="215" class="axis">Volatility →</text>
+            <text x="10" y="20" class="axis">Return</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Risk‑Adjusted Performance by Fund</h3>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Fund</th><th>Alpha vs Benchmark</th><th>Volatility (StdDev)</th><th>Sharpe Ratio</th></tr></thead>
+            <tbody>
+              <tr><td>Ashford Relative Value Fund</td><td class="neg">-0.74</td><td>2.10</td><td>0.05</td></tr>
+              <tr><td>Bluecrest Quant Strategies</td><td class="neg">-0.29</td><td>1.95</td><td>0.36</td></tr>
+              <tr><td>Cobalt Arbitrage Partners</td><td class="pos">+0.68</td><td>1.80</td><td>0.78</td></tr>
+              <tr><td>Crestwood Long/Short Fund</td><td class="pos">+0.58</td><td>1.58</td><td>0.85</td></tr>
+              <tr><td>Fairmont Macro Fund</td><td class="neg">-0.43</td><td>1.82</td><td>0.28</td></tr>
+              <tr><td>Halcyon Event Driven Fund</td><td class="pos">+0.02</td><td>1.91</td><td>0.39</td></tr>
+              <tr><td>Ironhold Credit Partners</td><td class="neg">-0.14</td><td>2.10</td><td>0.19</td></tr>
+              <tr><td>Meridian Alpha Partners</td><td class="pos">+0.03</td><td>2.09</td><td>0.33</td></tr>
+              <tr><td>Northbridge Capital</td><td class="neg">-0.44</td><td>1.69</td><td>0.28</td></tr>
+              <tr><td>Ridgeline Multi-Strat</td><td class="neg">-0.28</td><td>2.32</td><td>0.25</td></tr>
+              <tr><td>Silverline Global Macro</td><td class="neg">-0.20</td><td>1.95</td><td>0.39</td></tr>
+              <tr><td>Summit Peak Capital</td><td class="pos">+0.02</td><td>1.88</td><td>0.59</td></tr>
+              <tr><td><b>Total</b></td><td class="neg"><b>-0.16</b></td><td><b>1.95</b></td><td><b>0.35</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3 -->
+    <div class="panel" id="panel3">
+      <h2>Cash Flow &amp; Transaction Review</h2>
+      <p class="page-desc">Capital calls vs. distributions by year, and the status of the transaction compliance review.</p>
+      <div class="explain"><b>New to this?</b> A "capital call" is money the fund draws from investors to make an investment. A "distribution" is money paid back out. Comparing the two shows whether the fund is deploying capital faster than it's returning it. The review chart tracks how many transactions were checked or flagged.</div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Capital Calls vs. Distributions ($B)</h3>
+          <svg viewBox="0 0 600 220" preserveAspectRatio="xMidYMid meet">
+            <line x1="40" y1="20" x2="40" y2="200" class="gridline"/>
+            <line x1="40" y1="200" x2="560" y2="200" class="gridline"/>
+            <g>
+              <rect x="73.0" y="44.5" width="28" height="155.5" fill="#4FA8B3" rx="2"><title>2023 Capital Calls: $1.9B</title></rect>
+              <rect x="109.0" y="52.7" width="28" height="147.3" fill="#2E5C63" rx="2"><title>2023 Distributions: $1.8B</title></rect>
+              <rect x="203.0" y="48.6" width="28" height="151.4" fill="#4FA8B3" rx="2"><title>2024 Capital Calls: $1.85B</title></rect>
+              <rect x="239.0" y="52.7" width="28" height="147.3" fill="#2E5C63" rx="2"><title>2024 Distributions: $1.8B</title></rect>
+              <rect x="333.0" y="48.6" width="28" height="151.4" fill="#4FA8B3" rx="2"><title>2025 Capital Calls: $1.85B</title></rect>
+              <rect x="369.0" y="56.8" width="28" height="143.2" fill="#2E5C63" rx="2"><title>2025 Distributions: $1.75B</title></rect>
+              <rect x="463.0" y="93.6" width="28" height="106.4" fill="#4FA8B3" rx="2"><title>2026 Capital Calls: $1.3B (YTD)</title></rect>
+              <rect x="499.0" y="97.7" width="28" height="102.3" fill="#2E5C63" rx="2"><title>2026 Distributions: $1.25B (YTD)</title></rect>
+            </g>
+            <text x="80" y="215" class="axis">2023</text>
+            <text x="210" y="215" class="axis">2024</text>
+            <text x="340" y="215" class="axis">2025</text>
+            <text x="470" y="215" class="axis">2026</text>
+          </svg>
+          <div class="legend">
+            <span><span class="dot" style="background:#4FA8B3"></span>Capital Calls</span>
+            <span><span class="dot" style="background:#2E5C63"></span>Distributions</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Transaction Review Status</h3>
+          <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet" style="max-width:200px;margin:0 auto;">
+            <path d="M100,100 L100.00,15.00 A85,85 0 1 1 37.02,42.92 Z" fill="#5F9E7A"><title>Reviewed – Clean: 679 (86.7%)</title></path>
+            <path d="M100,100 L37.02,42.92 A85,85 0 0 1 75.79,18.52 Z" fill="#C9A227"><title>Pending Review: 68 (8.7%)</title></path>
+            <path d="M100,100 L75.79,18.52 A85,85 0 0 1 100.00,15.00 Z" fill="#C2694A"><title>Reviewed – Flagged: 36 (4.6%)</title></path>
+            <circle cx="100" cy="100" r="45" fill="#161D2C"/>
+          </svg>
+          <div class="legend">
+            <span><span class="dot" style="background:#5F9E7A"></span>Clean 679 (86.7%)</span>
+            <span><span class="dot" style="background:#C9A227"></span>Pending 68 (8.7%)</span>
+            <span><span class="dot" style="background:#C2694A"></span>Flagged 36 (4.6%)</span>
+          </div>
+          <div class="num mono" style="margin-top:14px;font-size:22px;color:var(--rose);">45.98%</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">of transaction value flagged</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Transaction Detail (sample)</h3>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>ID</th><th>Fund</th><th>Date</th><th>Amount (USD)</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>T00007</td><td>Meridian Alpha Partners</td><td>Mar 3, 2024</td><td>$8,330,173</td><td><span class="pill">Flagged</span></td></tr>
+              <tr><td>T00020</td><td>Meridian Alpha Partners</td><td>Apr 18, 2026</td><td>$14,164,612</td><td><span class="pill">Flagged</span></td></tr>
+              <tr><td>T00048</td><td>Northbridge Capital</td><td>Jul 2, 2023</td><td>$2,344,397</td><td><span class="pill">Flagged</span></td></tr>
+              <tr><td>T00147</td><td>Crestwood Long/Short Fund</td><td>May 11, 2023</td><td>$10,930,628</td><td><span class="pill">Flagged</span></td></tr>
+              <tr><td>T00198</td><td>Halcyon Event Driven Fund</td><td>Oct 1, 2025</td><td>$1,088,102</td><td><span class="pill">Flagged</span></td></tr>
+              <tr><td>T00327</td><td>Bluecrest Quant Strategies</td><td>Sep 4, 2024</td><td>$6,340,084</td><td><span class="pill">Flagged</span></td></tr>
+              <tr><td>T00464</td><td>Ridgeline Multi-Strat</td><td>Nov 29, 2025</td><td>$12,991,949</td><td><span class="pill">Flagged</span></td></tr>
+              <tr><td>T00521</td><td>Summit Peak Capital</td><td>Jun 13, 2024</td><td>$11,767,215</td><td><span class="pill">Flagged</span></td></tr>
+              <tr><td>T00568</td><td>Windward Global Fund</td><td>Apr 8, 2024</td><td>$7,204,672</td><td><span class="pill">Flagged</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 4 -->
+    <div class="panel" id="panel4">
+      <h2>Investor Base</h2>
+      <p class="page-desc">Committed capital broken down by investor type and geography.</p>
+      <div class="explain"><b>New to this?</b> "Committed capital" is the total amount an investor (an "LP," or limited partner) has pledged to the fund — not necessarily all called yet. Breaking it down by type and region is standard for LP reporting and fundraising strategy.</div>
+
+      <div class="grid thirds">
+        <div class="card">
+          <h3>Committed Capital by Investor Type ($B)</h3>
+          <svg viewBox="0 0 600 220" preserveAspectRatio="xMidYMid meet">
+            <line x1="40" y1="20" x2="40" y2="200" class="gridline"/>
+            <line x1="40" y1="200" x2="560" y2="200" class="gridline"/>
+            <rect x="65.3" y="48.3" width="36" height="151.7" fill="#C9A227" rx="2"><title>Fund of Funds: $0.58B</title></rect>
+            <rect x="152.0" y="90.2" width="36" height="109.8" fill="#C9A227" rx="2"><title>Family Office: $0.42B</title></rect>
+            <rect x="238.7" y="95.4" width="36" height="104.6" fill="#C9A227" rx="2"><title>Pension Fund: $0.40B</title></rect>
+            <rect x="325.3" y="108.5" width="36" height="91.5" fill="#C9A227" rx="2"><title>Endowment: $0.35B</title></rect>
+            <rect x="412.0" y="163.4" width="36" height="36.6" fill="#C9A227" rx="2"><title>Insurance Company: $0.14B</title></rect>
+            <rect x="498.7" y="166.0" width="36" height="34.0" fill="#C9A227" rx="2"><title>Sovereign Wealth Fund: $0.13B</title></rect>
+            <text x="45" y="215" class="axis">FoF</text>
+            <text x="140" y="215" class="axis">Family</text>
+            <text x="230" y="215" class="axis">Pension</text>
+            <text x="320" y="215" class="axis">Endow.</text>
+            <text x="400" y="215" class="axis">Insur.</text>
+            <text x="485" y="215" class="axis">SWF</text>
+          </svg>
+        </div>
+
+        <div class="card">
+          <h3>Committed Capital by Region ($B)</h3>
+          <svg viewBox="0 0 600 220" preserveAspectRatio="xMidYMid meet">
+            <line x1="40" y1="20" x2="40" y2="200" class="gridline"/>
+            <line x1="40" y1="20" x2="40" y2="200" class="gridline"/>
+            <rect x="40" y="30.0" width="440.5" height="30" fill="#4FA8B3" rx="2"><title>North America: $0.78B</title></rect>
+            <rect x="40" y="80.0" width="350.1" height="30" fill="#4FA8B3" rx="2"><title>Asia-Pacific: $0.62B</title></rect>
+            <rect x="40" y="130.0" width="254.1" height="30" fill="#4FA8B3" rx="2"><title>Europe: $0.45B</title></rect>
+            <rect x="40" y="180.0" width="135.5" height="30" fill="#4FA8B3" rx="2"><title>Middle East: $0.24B</title></rect>
+            <text x="0" y="49" class="axis">N. America</text>
+            <text x="0" y="99" class="axis">Asia-Pac</text>
+            <text x="0" y="149" class="axis">Europe</text>
+            <text x="0" y="199" class="axis">Mid. East</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Investor Commitment Detail (sample)</h3>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Investor ID</th><th>Type</th><th>Total Committed Capital</th></tr></thead>
+            <tbody>
+              <tr><td>I002</td><td>Endowment</td><td>$33,876,447</td></tr>
+              <tr><td>I011</td><td>Endowment</td><td>$80,041,023</td></tr>
+              <tr><td>I017</td><td>Endowment</td><td>$44,833,531</td></tr>
+              <tr><td>I022</td><td>Endowment</td><td>$28,221,782</td></tr>
+              <tr><td>I006</td><td>Family Office</td><td>$42,332,939</td></tr>
+              <tr><td>I012</td><td>Family Office</td><td>$14,818,563</td></tr>
+              <tr><td>I015</td><td>Family Office</td><td>$58,678,769</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <h2 class="serif">About this project</h2>
+  <p>Built the full data model from scratch in Power BI: a 6‑table star schema (fact_performance, fact_transactions, fact_allocations, dim_funds, dim_investors, dim_date) with custom DAX measures for risk‑adjusted performance and compliance flagging, across 4 report pages.</p>
+  <div class="tag-row">
+    <span class="tag">Power BI</span><span class="tag">DAX</span><span class="tag">Data Modeling</span>
+    <span class="tag">Power Query</span><span class="tag">Data Visualization</span><span class="tag">Financial Analysis</span>
+  </div>
+  <div class="measures">
+    <div class="measure"><div class="m-name">Sharpe Ratio (approx)</div><div class="m-desc">Return per unit of risk — flags which funds perform well relative to how much they fluctuate.</div></div>
+    <div class="measure"><div class="m-name">Alpha vs Benchmark</div><div class="m-desc">Return earned above/below the benchmark index each period.</div></div>
+    <div class="measure"><div class="m-name">Flagged Transactions %</div><div class="m-desc">Share of transaction value routed to compliance review.</div></div>
+  </div>
+</footer>
+
+</body>
+</html>
